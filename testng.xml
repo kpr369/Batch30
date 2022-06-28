@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Automation" parallel="methods" thread-count="3">
+    <test name = "Functional">
+        <parameter name="param1" value="Automation"></parameter>
+        <parameter name="param2" value="Selenium"></parameter>
+        <classes>
+            <class name="tesngclasses.ParalellExecution">
+            </class>
+        </classes>
+    </test>
+
+</suite>
