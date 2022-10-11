@@ -1,0 +1,56 @@
+name: PORTAL-QA-API-TESTS
+
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  TEST:
+    runs-on: kube-deploy
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: mck-connect-portal.jfrog.io/openjdk16:latest
+      credentials:
+        username: ${{ secrets.JFROG_USER }}
+        password: ${{ secrets.JFROG_API_KEY }}
+
+    steps:
+      - name: CHECKOUT
+        uses: actions/checkout@v2
+
+      - name: SETUP JAVA
+        uses: actions/setup-java@v1
+        with:
+          java-version: 16
+
+
+      - name: ANSIBLE VAULT
+        uses: anthonykgross/ansible-vault-cli-github-action@v1
+        with:
+          vault_key: ${{ secrets.ANSIBLE_VAULT }}
+          command: "ansible-vault decrypt certificates/qa/client-cert.der && ansible-vault decrypt certificates/qa/client-key.pk8"
+
+
+      - name: TEST
+        run: |
+          mkdir -p ~/.gradle/
+          echo ${{ secrets.QA_PROPERTIES }} | base64 -d >> ./src/main/resources/environments/qa.properties
+          echo ${{ secrets.ELASTIC_AUTH_API }} | base64 -d >> ./src/main/resources/environments/qa.properties
+          echo ${{ secrets.GRADLE_PROPERTIES_BASE64_DATA }} | base64 -d > ~/.gradle/gradle.properties
+          chmod +x gradlew
+          ./gradlew clean test --info --rerun-tasks --no-build-cache --tests "com.mckesson.api.usermanagementapp*" -Dtest.environment=qa > /dev/null
+
+      - name: AGGREGATE SERENITY REPORT
+        if: success() || failure()
+        run: |
+          ./gradlew aggregate
+
+      - name: UPLOAD SERENITY REPORT
+        uses: actions/upload-artifact@v3
+        if: success() || failure()
+        with:
+          name: serenity-report
+          path: target/site/serenity
